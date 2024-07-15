@@ -163,7 +163,7 @@ pipeline:
         failureStrategies:
           - onFailure:
               errors:
-                - AllErrors
+                - ApprovalRejection
               action:
-                type: StageRollback
+                type: MarkAsFailure
   tags: {}
