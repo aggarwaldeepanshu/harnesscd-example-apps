@@ -166,4 +166,9 @@ pipeline:
                 - ApprovalRejection
               action:
                 type: MarkAsFailure
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: Abort
   tags: {}
