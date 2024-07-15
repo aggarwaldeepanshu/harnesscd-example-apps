@@ -98,6 +98,12 @@ pipeline:
                     isAutoRejectEnabled: false
                     approverInputs: []
         tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - ApprovalRejection
+              action:
+                type: MarkAsFailure
     - stage:
         name: deploy-guestbook-Production
         identifier: Production
