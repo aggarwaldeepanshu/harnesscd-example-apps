@@ -1,0 +1,169 @@
+pipeline:
+  identifier: guestbook_canary_pipeline
+  name: guestbook_canary_pipeline
+  orgIdentifier: default
+  projectIdentifier: Microservice_Deployment_Pipeline
+  stages:
+    - stage:
+        description: ""
+        failureStrategies:
+          - onFailure:
+              action:
+                type: StageRollback
+              errors:
+                - AllErrors
+        identifier: deployguestbook
+        name: deploy-guestbook-QA
+        spec:
+          deploymentType: Kubernetes
+          environment:
+            deployToAll: false
+            environmentRef: harnessdevenv
+            infrastructureDefinitions:
+              - identifier: harnessk8sinfra
+          execution:
+            rollbackSteps:
+              - step:
+                  identifier: rollbackCanaryDelete
+                  name: Canary Delete
+                  spec: {}
+                  timeout: 10m
+                  type: K8sCanaryDelete
+              - step:
+                  identifier: rollingRollback
+                  name: Rolling Rollback
+                  spec: {}
+                  timeout: 10m
+                  type: K8sRollingRollback
+            steps:
+              - stepGroup:
+                  identifier: canaryDepoyment
+                  name: Canary Deployment
+                  steps:
+                    - step:
+                        identifier: canaryDeployment
+                        name: Canary Deployment
+                        spec:
+                          instanceSelection:
+                            spec:
+                              count: 1
+                            type: Count
+                          skipDryRun: false
+                        timeout: 10m
+                        type: K8sCanaryDeploy
+                    - step:
+                        identifier: canaryDelete
+                        name: Canary Delete
+                        spec: {}
+                        timeout: 10m
+                        type: K8sCanaryDelete
+              - stepGroup:
+                  identifier: primaryDepoyment
+                  name: Primary Deployment
+                  steps:
+                    - step:
+                        identifier: rollingDeployment
+                        name: Rolling Deployment
+                        spec:
+                          skipDryRun: false
+                        timeout: 10m
+                        type: K8sRollingDeploy
+          service:
+            serviceRef: harnessguestbook
+        tags: {}
+        type: Deployment
+    - stage:
+        name: approval for production
+        identifier: approval_for_production
+        description: ""
+        type: Approval
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: approve deployment
+                  identifier: approve_deployment
+                  type: HarnessApproval
+                  timeout: 1d
+                  spec:
+                    approvalMessage: |-
+                      Please review the following information
+                      and approve the pipeline progression
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                      userGroups:
+                        - account._account_all_users
+                    isAutoRejectEnabled: false
+                    approverInputs: []
+        tags: {}
+    - stage:
+        name: deploy-guestbook-Production
+        identifier: Production
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          environment:
+            environmentRef: harnessdevenv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: harnessk8sinfra
+          execution:
+            steps:
+              - stepGroup:
+                  name: Canary Deployment
+                  identifier: canaryDeployment
+                  steps:
+                    - step:
+                        name: Canary Deployment
+                        identifier: canaryDeployment
+                        type: K8sCanaryDeploy
+                        timeout: 10m
+                        spec:
+                          instanceSelection:
+                            type: Count
+                            spec:
+                              count: 1
+                          skipDryRun: false
+                    - step:
+                        name: Canary Delete
+                        identifier: canaryDelete
+                        type: K8sCanaryDelete
+                        timeout: 10m
+                        spec: {}
+              - stepGroup:
+                  name: Primary Deployment
+                  identifier: primaryDeployment
+                  steps:
+                    - step:
+                        name: Rolling Deployment
+                        identifier: rollingDeployment
+                        type: K8sRollingDeploy
+                        timeout: 10m
+                        spec:
+                          skipDryRun: false
+            rollbackSteps:
+              - step:
+                  name: Canary Delete
+                  identifier: rollbackCanaryDelete
+                  type: K8sCanaryDelete
+                  timeout: 10m
+                  spec: {}
+              - step:
+                  name: Rolling Rollback
+                  identifier: rollingRollback
+                  type: K8sRollingRollback
+                  timeout: 10m
+                  spec: {}
+          service:
+            serviceRef: harnessguestbook
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+  tags: {}
